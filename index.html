@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DULMUNG BLAST Game</title>
+    <title>DULMUNG BLAST Puzzle Game</title>
     <style>
         :root {
             /* 8 Rows x 9 Columns Grid Settings */
@@ -122,9 +122,10 @@
         }
 
         .block-shape {
-            display: grid;
-            grid-auto-flow: column;
+            display: inline-grid;
             gap: 1px;
+            padding: 5px; /* Padding for better visibility */
+            background-color: rgba(0, 0, 0, 0.1);
         }
 
         .block-shape .block-part {
@@ -170,12 +171,17 @@
         const SLEEP_TIMEOUT = 30000; // 30 seconds for '잠.png'
 
         // Define Block Shapes (1 represents a solid block part)
+        // These are standard 1010! / Block Blast shapes
         const BLOCK_SHAPES_DATA = [
-            { id: 1, color: 'block-white', shape: [[1, 1, 1]] }, // 1x3 line
-            { id: 2, color: 'block-black', shape: [[1, 1], [1, 1]] }, // 2x2 square
-            { id: 3, color: 'block-gray', shape: [[1, 0], [1, 0], [1, 1]] }, // L shape
-            { id: 4, color: 'block-white', shape: [[1], [1], [1], [1]] }, // 4x1 line
+            { id: 1, color: 'block-white', shape: [[1, 1, 1, 1]] }, // 1x4 line
+            { id: 2, color: 'block-black', shape: [[1], [1], [1]] }, // 3x1 line
+            { id: 3, color: 'block-gray', shape: [[1, 1], [1, 1]] }, // 2x2 square
+            { id: 4, color: 'block-white', shape: [[1, 0], [1, 0], [1, 1]] }, // L shape
             { id: 5, color: 'block-black', shape: [[1, 1, 1], [0, 1, 0]] }, // T shape
+            { id: 6, color: 'block-gray', shape: [[1, 1, 1]] }, // 1x3 line
+            { id: 7, color: 'block-white', shape: [[1, 1]] }, // 1x2 line
+            { id: 8, color: 'block-black', shape: [[1]] }, // 1x1 block
+            { id: 9, color: 'block-gray', shape: [[1, 1, 1], [1, 0, 0], [1, 0, 0]] }, // Large L
         ];
 
         // --- DOM Elements ---
@@ -192,7 +198,7 @@
         let lastMoveTime = Date.now();
         let sleepTimer = null;
         let comboCount = 0;
-        let currentBlockSet = [];
+        let currentBlockSet = []; // Array of 3 blocks
         let currentDraggingBlock = null;
 
         highScoreElement.textContent = highScore;
@@ -245,7 +251,6 @@
                     cell.classList.add('cell');
                     cell.dataset.row = r;
                     cell.dataset.col = c;
-                    // No click listener here, drop handling is on gameBoard
                     gameBoard.appendChild(cell);
                 }
             }
@@ -262,7 +267,6 @@
                 CELL_COLORS.forEach(color => cell.classList.remove(color));
 
                 if (blockType > 0) {
-                    // Assuming blockType 1=white, 2=black, 3=gray for simplicity
                     cell.classList.add(CELL_COLORS[blockType - 1]);
                 }
             });
@@ -309,7 +313,7 @@
                         const boardCol = startCol + c;
 
                         // Check bounds and if cell is already occupied
-                        if (boardRow >= ROWS || boardCol >= COLS || board[boardRow][boardCol] !== 0) {
+                        if (boardRow >= ROWS || boardRow < 0 || boardCol >= COLS || boardCol < 0 || board[boardRow][boardCol] !== 0) {
                             return false; // Placement failed (out of bounds or collision)
                         }
                     }
@@ -348,7 +352,8 @@
                         break;
                     }
                 }
-                if (isFull) {
+                // Prevent duplicate clearing if a cell is part of both a full row and a full column
+                if (isFull && !linesToClear.some(l => l.type === 'col' && l.index === c)) {
                     linesToClear.push({ type: 'col', index: c });
                 }
             }
@@ -368,14 +373,9 @@
             return clearedCount;
         }
 
-        /** Checks if any of the remaining blocks can be placed anywhere */
+        /** Checks if any of the remaining blocks can be placed anywhere on the board */
         function checkGameOverCondition() {
-            // Check if all 3 blocks have been placed
-            if (currentBlockSet.every(block => block === null)) {
-                return false; // Game is not over, a new set should be generated
-            }
-            
-            // Check if any of the remaining blocks can be placed (Simplified check)
+            // Check only the blocks that haven't been placed yet
             for (const blockData of currentBlockSet) {
                 if (blockData) {
                     const shape = blockData.shape;
@@ -385,13 +385,17 @@
                     // Iterate through every cell on the board as a potential top-left corner
                     for (let r = 0; r <= ROWS - rows; r++) {
                         for (let c = 0; c <= COLS - cols; c++) {
-                            // Quick check if the block fits at (r, c)
+                            
+                            // Check if the block fits at position (r, c)
                             let fits = true;
                             for (let br = 0; br < rows; br++) {
                                 for (let bc = 0; bc < cols; bc++) {
-                                    if (shape[br][bc] === 1 && board[r + br][c + bc] !== 0) {
-                                        fits = false;
-                                        break;
+                                    if (shape[br][bc] === 1) {
+                                        // Check collision against existing blocks
+                                        if (board[r + br][c + bc] !== 0) {
+                                            fits = false;
+                                            break;
+                                        }
                                     }
                                 }
                                 if (!fits) break;
@@ -404,7 +408,18 @@
                 }
             }
 
-            return true; // No blocks can be placed, Game Over
+            // Only check for game over if all 3 blocks are currently on the board and can't be placed
+            if (currentBlockSet.every(block => block === null) && previewArea.children.length === 0) {
+                // If the set is empty, it means new blocks should have been generated. 
+                // This state should ideally not happen unless game logic is flawed or the game is over 
+                // and new blocks couldn't be generated.
+                return false; 
+            } else if (currentBlockSet.some(block => block !== null)) {
+                // If there are unplaced blocks, and none of them fit, it's game over.
+                return true;
+            }
+
+            return false;
         }
         
         // --- Event Handlers ---
@@ -418,14 +433,13 @@
                 shape: JSON.parse(event.target.dataset.shape),
                 color: event.target.dataset.color
             };
-            event.dataTransfer.setData('text/plain', ''); // Required for Firefox/Edge
+            event.dataTransfer.setData('text/plain', '');
             
             resetInactivityTimer();
         }
 
         function handleBoardDragOver(event) {
-            event.preventDefault(); // Allows drop
-            // Optional: Highlight potential placement area
+            event.preventDefault(); 
         }
 
         function handleBoardDrop(event) {
@@ -444,19 +458,19 @@
             const placementSuccessful = attemptPlacement(startRow, startCol, blockData);
 
             if (placementSuccessful) {
-                // Remove the block from the set
+                // 1. Mark block as placed and visually remove it
                 const placedBlockIndex = blockData.index;
                 currentBlockSet[placedBlockIndex] = null;
                 document.getElementById(`preview-${placedBlockIndex}`).classList.add('empty');
                 document.getElementById(`preview-${placedBlockIndex}`).draggable = false;
                 document.getElementById(`preview-${placedBlockIndex}`).innerHTML = '';
                 
-                // 1. Check for cleared lines and combos
+                // 2. Check for cleared lines and combos
                 const clearedLines = checkAndClearLines(); 
                 let isCombo = clearedLines > 0;
                 
                 if (isCombo) {
-                    const newScore = score + clearedLines * 10 + (comboCount * 5); // Combo bonus score
+                    const newScore = score + (clearedLines * 10) + (comboCount * 5); // Combo bonus score
                     handleCombo(true, newScore); 
                 } else {
                     // Successful move, but no line cleared. Reset combo count.
@@ -466,19 +480,19 @@
                 updateBoardDisplay(); 
                 handleMove(true); // Reset inactivity timer
 
-                // 2. Check if all blocks in the set are used, and generate new ones
+                // 3. Check if all blocks in the set are used, and generate new ones
                 if (currentBlockSet.every(block => block === null)) {
                     generateNewBlockSet();
                 }
 
             } else {
-                // Placement failed, do nothing, block returns to preview area
-                handleMove(false); // Only reset inactivity timer if a move was successful
+                // Placement failed
+                // handleMove(false); // Do not reset timer if placement failed
             }
             
             currentDraggingBlock = null;
             
-            // 3. Check for Game Over condition
+            // 4. Check for Game Over condition
             if (checkGameOverCondition()) {
                 handleGameOver();
             }
@@ -496,9 +510,8 @@
             }, duration);
         }
 
-        /** Checks for inactivity and displays '잠.png' */
+        /** Checks for inactivity and displays '잠.png' (30 seconds idle) */
         function checkInactivity() {
-            // Display '잠.png' if no block movement for 30+ seconds
             if (Date.now() - lastMoveTime > SLEEP_TIMEOUT) {
                 showImage('잠.png', 5000); 
             }
@@ -516,7 +529,6 @@
         function handleMove(isSuccessfulMove) {
             if (isSuccessfulMove) {
                 resetInactivityTimer();
-                // General move logic goes here
             }
         }
 
@@ -526,7 +538,7 @@
                 // Display '행복.png' on combo
                 showImage('행복.png', 1000); 
             } else {
-                comboCount = 0;
+                comboCount = 0; // Combo streak broken
             }
             
             score = newScore; 
@@ -551,7 +563,9 @@
             // Display '추움.png' on game over
             showImage('추움.png', 3000); 
             
-            // Display final score, prompt restart, etc.
+            // Disable further moves and display final score
+            gameBoard.removeEventListener('drop', handleBoardDrop);
+            previewArea.querySelectorAll('.block-preview').forEach(b => b.draggable = false);
         }
 
         // --- Game Start Function ---
@@ -561,10 +575,10 @@
             comboCount = 0;
             
             createBoard();
-            updateBoardDisplay(); // Initial empty board display
+            updateBoardDisplay(); 
             generateNewBlockSet();
             
-            resetInactivityTimer(); // Start inactivity timer
+            resetInactivityTimer();
         }
         
         // Initialize game on page load
