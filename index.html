@@ -9,7 +9,8 @@
             /* 8 Rows x 9 Columns Grid Settings */
             --grid-rows: 8;
             --grid-cols: 9;
-            --cell-size: 40px; /* Cell size */
+            --cell-size: 40px; 
+            --preview-size: 100px; /* Size for block preview area */
         }
 
         body {
@@ -26,6 +27,12 @@
 
         h1 {
             color: #4a4a4a;
+        }
+
+        #main-wrapper {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
         }
 
         #game-container {
@@ -46,20 +53,22 @@
             height: var(--cell-size);
             box-sizing: border-box;
             border: 1px solid #999;
-            transition: background-color 0.1s;
         }
 
-        /* Block colors: White, Black, Gray */
+        /* Block colors */
         .block-white {
             background-color: white;
+            border: 1px solid #666;
         }
         
         .block-black {
             background-color: black;
+            border: 1px solid #fff;
         }
         
         .block-gray {
             background-color: gray;
+            border: 1px solid #333;
         }
 
         #status-image {
@@ -85,6 +94,45 @@
             font-weight: bold;
         }
 
+        #preview-area {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #eee;
+        }
+
+        .block-preview {
+            width: var(--preview-size);
+            height: var(--preview-size);
+            border: 2px solid #666;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #fff;
+            cursor: grab;
+            user-select: none;
+        }
+        
+        .block-preview.empty {
+            background-color: #ddd;
+            border-style: dashed;
+            cursor: default;
+        }
+
+        .block-shape {
+            display: grid;
+            grid-auto-flow: column;
+            gap: 1px;
+        }
+
+        .block-shape .block-part {
+            width: 15px;
+            height: 15px;
+            box-sizing: border-box;
+        }
+
         button {
             margin-top: 20px;
             padding: 10px 20px;
@@ -98,11 +146,19 @@
     <h1>DULMUNG BLAST</h1>
     <div id="score-board">Score: <span id="current-score">0</span> | High Score: <span id="high-score">0</span></div>
     
-    <div id="game-container">
-        <div id="game-board">
+    <div id="main-wrapper">
+        <div id="game-container">
+            <div id="game-board" 
+                 ondragover="handleBoardDragOver(event)" 
+                 ondrop="handleBoardDrop(event)">
+                </div>
+            <img id="status-image" src="" alt="Game Status Image">
+        </div>
+
+        <div id="preview-area">
             </div>
-        <img id="status-image" src="" alt="Game Status Image">
     </div>
+    
 
     <button onclick="startGame()">Start / Restart Game</button>
 
@@ -113,26 +169,75 @@
         const CELL_COLORS = ['block-white', 'block-black', 'block-gray'];
         const SLEEP_TIMEOUT = 30000; // 30 seconds for '잠.png'
 
+        // Define Block Shapes (1 represents a solid block part)
+        const BLOCK_SHAPES_DATA = [
+            { id: 1, color: 'block-white', shape: [[1, 1, 1]] }, // 1x3 line
+            { id: 2, color: 'block-black', shape: [[1, 1], [1, 1]] }, // 2x2 square
+            { id: 3, color: 'block-gray', shape: [[1, 0], [1, 0], [1, 1]] }, // L shape
+            { id: 4, color: 'block-white', shape: [[1], [1], [1], [1]] }, // 4x1 line
+            { id: 5, color: 'block-black', shape: [[1, 1, 1], [0, 1, 0]] }, // T shape
+        ];
+
         // --- DOM Elements ---
         const gameBoard = document.getElementById('game-board');
         const statusImage = document.getElementById('status-image');
         const currentScoreElement = document.getElementById('current-score');
         const highScoreElement = document.getElementById('high-score');
+        const previewArea = document.getElementById('preview-area');
 
         // --- Game State Variables ---
-        let board = [];
+        let board = []; // 2D array to hold block data (0: empty, 1/2/3: colored blocks)
         let score = 0;
         let highScore = localStorage.getItem('dulmungBlastHighScore') || 0;
         let lastMoveTime = Date.now();
         let sleepTimer = null;
         let comboCount = 0;
+        let currentBlockSet = [];
+        let currentDraggingBlock = null;
 
         highScoreElement.textContent = highScore;
 
-        // --- Function: Initialize and Draw Board ---
+        // --- Utility Functions ---
+
+        /** Generates a random block shape */
+        function generateBlock() {
+            const randomIndex = Math.floor(Math.random() * BLOCK_SHAPES_DATA.length);
+            return { ...BLOCK_SHAPES_DATA[randomIndex] };
+        }
+
+        /** Draws the given shape onto the preview element */
+        function drawPreviewBlock(element, shapeData) {
+            element.innerHTML = '';
+            
+            const shapeDiv = document.createElement('div');
+            shapeDiv.classList.add('block-shape');
+            
+            // Set grid template based on shape dimensions
+            const rows = shapeData.shape.length;
+            const cols = shapeData.shape[0].length;
+            
+            shapeDiv.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+            shapeDiv.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const blockPart = document.createElement('div');
+                    blockPart.classList.add('block-part');
+                    if (shapeData.shape[r][c] === 1) {
+                        blockPart.classList.add(shapeData.color);
+                    }
+                    shapeDiv.appendChild(blockPart);
+                }
+            }
+            element.appendChild(shapeDiv);
+        }
+
+        // --- Game Core Functions ---
+
+        /** Creates the 8x9 grid DOM elements */
         function createBoard() {
             gameBoard.innerHTML = '';
-            board = Array(ROWS).fill(0).map(() => Array(COLS).fill(0)); // 0: empty
+            board = Array(ROWS).fill(0).map(() => Array(COLS).fill(0)); 
             
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
@@ -140,28 +245,250 @@
                     cell.classList.add('cell');
                     cell.dataset.row = r;
                     cell.dataset.col = c;
-                    cell.addEventListener('click', handleCellClick); // Temporary click event for testing
+                    // No click listener here, drop handling is on gameBoard
                     gameBoard.appendChild(cell);
                 }
             }
         }
         
+        /** Updates the visual display of the board based on the 'board' data array */
         function updateBoardDisplay() {
-            // Update the display of cells based on the 'board' array's state.
             const cells = gameBoard.querySelectorAll('.cell');
             cells.forEach(cell => {
-                // Remove existing color classes
-                CELL_COLORS.forEach(color => cell.classList.remove(color));
+                const r = parseInt(cell.dataset.row);
+                const c = parseInt(cell.dataset.col);
+                const blockType = board[r][c];
                 
-                // (Temporary) Assign a random color
-                const randomColor = CELL_COLORS[Math.floor(Math.random() * CELL_COLORS.length)];
-                cell.classList.add(randomColor);
+                CELL_COLORS.forEach(color => cell.classList.remove(color));
+
+                if (blockType > 0) {
+                    // Assuming blockType 1=white, 2=black, 3=gray for simplicity
+                    cell.classList.add(CELL_COLORS[blockType - 1]);
+                }
             });
         }
+        
+        /** Generates and displays 3 new blocks */
+        function generateNewBlockSet() {
+            previewArea.innerHTML = '';
+            currentBlockSet = [];
 
-        // --- Function: Show and Hide Game Images (Using Korean Filenames) ---
+            for (let i = 0; i < 3; i++) {
+                const blockData = generateBlock();
+                currentBlockSet.push(blockData);
+
+                const previewElement = document.createElement('div');
+                previewElement.classList.add('block-preview');
+                previewElement.id = `preview-${i}`;
+                previewElement.draggable = true;
+                
+                // Store block data in dataset for drag operation
+                previewElement.dataset.index = i;
+                previewElement.dataset.shape = JSON.stringify(blockData.shape);
+                previewElement.dataset.color = blockData.color;
+                
+                drawPreviewBlock(previewElement, blockData);
+
+                previewElement.addEventListener('dragstart', handleBlockDragStart);
+                previewArea.appendChild(previewElement);
+            }
+        }
+        
+        /** Checks if the block fits and updates the board array */
+        function attemptPlacement(startRow, startCol, blockData) {
+            const shape = blockData.shape;
+            const rows = shape.length;
+            const cols = shape[0].length;
+            const colorIndex = CELL_COLORS.indexOf(blockData.color) + 1; // 1, 2, or 3
+
+            // 1. Check for boundaries and collisions
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (shape[r][c] === 1) {
+                        const boardRow = startRow + r;
+                        const boardCol = startCol + c;
+
+                        // Check bounds and if cell is already occupied
+                        if (boardRow >= ROWS || boardCol >= COLS || board[boardRow][boardCol] !== 0) {
+                            return false; // Placement failed (out of bounds or collision)
+                        }
+                    }
+                }
+            }
+
+            // 2. Place the block (Update the board array)
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (shape[r][c] === 1) {
+                        board[startRow + r][startCol + c] = colorIndex;
+                    }
+                }
+            }
+            return true; // Placement successful
+        }
+        
+        /** Checks for complete rows/columns and clears them, returning the count */
+        function checkAndClearLines() {
+            let clearedCount = 0;
+            const linesToClear = [];
+
+            // Check Rows
+            for (let r = 0; r < ROWS; r++) {
+                if (board[r].every(cell => cell !== 0)) {
+                    linesToClear.push({ type: 'row', index: r });
+                }
+            }
+
+            // Check Columns
+            for (let c = 0; c < COLS; c++) {
+                let isFull = true;
+                for (let r = 0; r < ROWS; r++) {
+                    if (board[r][c] === 0) {
+                        isFull = false;
+                        break;
+                    }
+                }
+                if (isFull) {
+                    linesToClear.push({ type: 'col', index: c });
+                }
+            }
+            
+            // Clear the lines
+            linesToClear.forEach(line => {
+                clearedCount++;
+                if (line.type === 'row') {
+                    board[line.index].fill(0);
+                } else if (line.type === 'col') {
+                    for (let r = 0; r < ROWS; r++) {
+                        board[r][line.index] = 0;
+                    }
+                }
+            });
+
+            return clearedCount;
+        }
+
+        /** Checks if any of the remaining blocks can be placed anywhere */
+        function checkGameOverCondition() {
+            // Check if all 3 blocks have been placed
+            if (currentBlockSet.every(block => block === null)) {
+                return false; // Game is not over, a new set should be generated
+            }
+            
+            // Check if any of the remaining blocks can be placed (Simplified check)
+            for (const blockData of currentBlockSet) {
+                if (blockData) {
+                    const shape = blockData.shape;
+                    const rows = shape.length;
+                    const cols = shape[0].length;
+                    
+                    // Iterate through every cell on the board as a potential top-left corner
+                    for (let r = 0; r <= ROWS - rows; r++) {
+                        for (let c = 0; c <= COLS - cols; c++) {
+                            // Quick check if the block fits at (r, c)
+                            let fits = true;
+                            for (let br = 0; br < rows; br++) {
+                                for (let bc = 0; bc < cols; bc++) {
+                                    if (shape[br][bc] === 1 && board[r + br][c + bc] !== 0) {
+                                        fits = false;
+                                        break;
+                                    }
+                                }
+                                if (!fits) break;
+                            }
+                            if (fits) {
+                                return false; // At least one block can still be placed
+                            }
+                        }
+                    }
+                }
+            }
+
+            return true; // No blocks can be placed, Game Over
+        }
+        
+        // --- Event Handlers ---
+
+        function handleBlockDragStart(event) {
+            if (event.target.classList.contains('empty')) return;
+            
+            // Store block data and its index for later removal
+            currentDraggingBlock = {
+                index: parseInt(event.target.dataset.index),
+                shape: JSON.parse(event.target.dataset.shape),
+                color: event.target.dataset.color
+            };
+            event.dataTransfer.setData('text/plain', ''); // Required for Firefox/Edge
+            
+            resetInactivityTimer();
+        }
+
+        function handleBoardDragOver(event) {
+            event.preventDefault(); // Allows drop
+            // Optional: Highlight potential placement area
+        }
+
+        function handleBoardDrop(event) {
+            event.preventDefault();
+
+            if (!currentDraggingBlock) return;
+
+            const targetCell = event.target.closest('.cell');
+            if (!targetCell) return;
+            
+            const startRow = parseInt(targetCell.dataset.row);
+            const startCol = parseInt(targetCell.dataset.col);
+
+            const blockData = currentDraggingBlock;
+
+            const placementSuccessful = attemptPlacement(startRow, startCol, blockData);
+
+            if (placementSuccessful) {
+                // Remove the block from the set
+                const placedBlockIndex = blockData.index;
+                currentBlockSet[placedBlockIndex] = null;
+                document.getElementById(`preview-${placedBlockIndex}`).classList.add('empty');
+                document.getElementById(`preview-${placedBlockIndex}`).draggable = false;
+                document.getElementById(`preview-${placedBlockIndex}`).innerHTML = '';
+                
+                // 1. Check for cleared lines and combos
+                const clearedLines = checkAndClearLines(); 
+                let isCombo = clearedLines > 0;
+                
+                if (isCombo) {
+                    const newScore = score + clearedLines * 10 + (comboCount * 5); // Combo bonus score
+                    handleCombo(true, newScore); 
+                } else {
+                    // Successful move, but no line cleared. Reset combo count.
+                    handleCombo(false, score + 1); // Small score for placement
+                }
+                
+                updateBoardDisplay(); 
+                handleMove(true); // Reset inactivity timer
+
+                // 2. Check if all blocks in the set are used, and generate new ones
+                if (currentBlockSet.every(block => block === null)) {
+                    generateNewBlockSet();
+                }
+
+            } else {
+                // Placement failed, do nothing, block returns to preview area
+                handleMove(false); // Only reset inactivity timer if a move was successful
+            }
+            
+            currentDraggingBlock = null;
+            
+            // 3. Check for Game Over condition
+            if (checkGameOverCondition()) {
+                handleGameOver();
+            }
+        }
+        
+        // --- Status Image Functions (Korean Filenames) ---
+
+        /** Shows a status image and hides it after a duration */
         function showImage(fileName, duration = 1500) {
-            statusImage.src = fileName; // e.g., "잠.png"
+            statusImage.src = fileName; 
             statusImage.classList.add('visible');
 
             setTimeout(() => {
@@ -169,7 +496,7 @@
             }, duration);
         }
 
-        // --- Function: State Check and Timer Management ---
+        /** Checks for inactivity and displays '잠.png' */
         function checkInactivity() {
             // Display '잠.png' if no block movement for 30+ seconds
             if (Date.now() - lastMoveTime > SLEEP_TIMEOUT) {
@@ -177,25 +504,23 @@
             }
         }
 
+        /** Resets the inactivity timer */
         function resetInactivityTimer() {
             lastMoveTime = Date.now();
             clearTimeout(sleepTimer);
             sleepTimer = setTimeout(checkInactivity, SLEEP_TIMEOUT);
         }
-
-        // --- Function: Main Game Event Triggers ---
         
-        // 1. Called upon successful block movement/placement
-        function handleMove(isSuccessfulMove = true) {
+        // --- Game Event Triggers ---
+
+        function handleMove(isSuccessfulMove) {
             if (isSuccessfulMove) {
                 resetInactivityTimer();
-                // Add block placement and row/column clearing logic here.
-                updateBoardDisplay(); 
+                // General move logic goes here
             }
         }
 
-        // 2. Called upon successful row/column clear (combo)
-        function handleCombo(isCombo = true, newScore) {
+        function handleCombo(isCombo, newScore) {
             if (isCombo) {
                 comboCount++;
                 // Display '행복.png' on combo
@@ -204,17 +529,14 @@
                 comboCount = 0;
             }
             
-            // Update score
             score = newScore; 
             currentScoreElement.textContent = score;
 
-            // Check for new high score
             if (score > highScore) {
                 handleNewRecord();
             }
         }
 
-        // 3. Called when a new high score is achieved
         function handleNewRecord() {
             highScore = score;
             localStorage.setItem('dulmungBlastHighScore', highScore);
@@ -223,29 +545,13 @@
             showImage('신남.png', 2000); 
         }
 
-        // 4. Called when the game is over (no more valid moves)
         function handleGameOver() {
             clearTimeout(sleepTimer);
             
             // Display '추움.png' on game over
             showImage('추움.png', 3000); 
             
-            // Additional game over logic...
-        }
-        
-        // --- Function: Cell Click (Temporary for testing) ---
-        function handleCellClick(event) {
-            // This is a placeholder for actual drag-and-drop logic.
-            handleMove(true); 
-
-            // (Temporary Test) Increase score and check combo/new record
-            const newScore = score + 10; 
-            handleCombo(true, newScore); 
-
-            // (Temporary Test) Trigger Game Over when score exceeds 100
-            if (newScore > 100 && newScore < 111) {
-                handleGameOver();
-            }
+            // Display final score, prompt restart, etc.
         }
 
         // --- Game Start Function ---
@@ -253,10 +559,12 @@
             score = 0;
             currentScoreElement.textContent = score;
             comboCount = 0;
+            
             createBoard();
-            // updateBoardDisplay(); // Initial board state setup (shows random colors for test)
+            updateBoardDisplay(); // Initial empty board display
+            generateNewBlockSet();
+            
             resetInactivityTimer(); // Start inactivity timer
-            // Add initial block generation logic here
         }
         
         // Initialize game on page load
