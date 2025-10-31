@@ -1,177 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DULMUNG BLAST Puzzle Game</title>
-    <style>
-        :root {
-            /* 8 Rows x 9 Columns Grid Settings */
-            --grid-rows: 8;
-            --grid-cols: 9;
-            --cell-size: 40px; 
-            --preview-size: 100px; /* Size for block preview area */
-        }
-
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-            font-family: sans-serif;
-            color: #333;
-        }
-
-        h1 {
-            color: #4a4a4a;
-        }
-
-        #main-wrapper {
-            display: flex;
-            gap: 30px;
-            align-items: flex-start;
-        }
-
-        #game-container {
-            position: relative;
-        }
-
-        #game-board {
-            display: grid;
-            grid-template-rows: repeat(var(--grid-rows), var(--cell-size));
-            grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
-            border: 3px solid #333;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            background-color: #ccc; /* Board background gray */
-        }
-
-        .cell {
-            width: var(--cell-size);
-            height: var(--cell-size);
-            box-sizing: border-box;
-            border: 1px solid #999;
-        }
-
-        /* Block colors */
-        .block-white {
-            background-color: white;
-            border: 1px solid #666;
-        }
-        
-        .block-black {
-            background-color: black;
-            border: 1px solid #fff;
-        }
-        
-        .block-gray {
-            background-color: gray;
-            border: 1px solid #333;
-        }
-
-        #status-image {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            max-width: 150px;
-            max-height: 150px;
-            z-index: 10;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-            pointer-events: none; /* Make image unclickable */
-        }
-
-        #status-image.visible {
-            opacity: 1;
-        }
-
-        #score-board {
-            margin-bottom: 20px;
-            font-size: 1.5em;
-            font-weight: bold;
-        }
-
-        #preview-area {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            background-color: #eee;
-        }
-
-        .block-preview {
-            width: var(--preview-size);
-            height: var(--preview-size);
-            border: 2px solid #666;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #fff;
-            cursor: grab;
-            user-select: none;
-        }
-        
-        .block-preview.empty {
-            background-color: #ddd;
-            border-style: dashed;
-            cursor: default;
-        }
-
-        .block-shape {
-            display: inline-grid;
-            gap: 1px;
-            padding: 5px; /* Padding for better visibility */
-            background-color: rgba(0, 0, 0, 0.1);
-        }
-
-        .block-shape .block-part {
-            width: 15px;
-            height: 15px;
-            box-sizing: border-box;
-        }
-
-        button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 1em;
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
-
-    <h1>DULMUNG BLAST</h1>
-    <div id="score-board">Score: <span id="current-score">0</span> | High Score: <span id="high-score">0</span></div>
-    
-    <div id="main-wrapper">
-        <div id="game-container">
-            <div id="game-board" 
-                 ondragover="handleBoardDragOver(event)" 
-                 ondrop="handleBoardDrop(event)">
-                </div>
-            <img id="status-image" src="" alt="Game Status Image">
-        </div>
-
-        <div id="preview-area">
-            </div>
-    </div>
-    
-
-    <button onclick="startGame()">Start / Restart Game</button>
-
-    <script>
-        // --- Game Configuration ---
+        // --- Game Configuration (No change) ---
         const ROWS = 8;
         const COLS = 9;
         const CELL_COLORS = ['block-white', 'block-black', 'block-gray'];
         const SLEEP_TIMEOUT = 30000; // 30 seconds for '잠.png'
 
-        // Define Block Shapes (1 represents a solid block part)
-        // These are standard 1010! / Block Blast shapes
+        // Define Block Shapes (No change)
         const BLOCK_SHAPES_DATA = [
             { id: 1, color: 'block-white', shape: [[1, 1, 1, 1]] }, // 1x4 line
             { id: 2, color: 'block-black', shape: [[1], [1], [1]] }, // 3x1 line
@@ -184,7 +17,7 @@
             { id: 9, color: 'block-gray', shape: [[1, 1, 1], [1, 0, 0], [1, 0, 0]] }, // Large L
         ];
 
-        // --- DOM Elements ---
+        // --- DOM Elements (No change) ---
         const gameBoard = document.getElementById('game-board');
         const statusImage = document.getElementById('status-image');
         const currentScoreElement = document.getElementById('current-score');
@@ -192,33 +25,31 @@
         const previewArea = document.getElementById('preview-area');
 
         // --- Game State Variables ---
-        let board = []; // 2D array to hold block data (0: empty, 1/2/3: colored blocks)
+        let board = []; 
         let score = 0;
         let highScore = localStorage.getItem('dulmungBlastHighScore') || 0;
         let lastMoveTime = Date.now();
         let sleepTimer = null;
         let comboCount = 0;
-        let currentBlockSet = []; // Array of 3 blocks
-        let currentDraggingBlock = null;
+        let currentBlockSet = []; 
+        
+        // **NEW** Variable for touch selection
+        let currentSelectedBlock = null; 
+        let lastTouchTime = 0; // For double-tap detection
 
         highScoreElement.textContent = highScore;
 
-        // --- Utility Functions ---
-
-        /** Generates a random block shape */
-        function generateBlock() {
+        // --- Utility Functions (No change) ---
+        function generateBlock() { /* ... function body ... */
             const randomIndex = Math.floor(Math.random() * BLOCK_SHAPES_DATA.length);
             return { ...BLOCK_SHAPES_DATA[randomIndex] };
         }
-
-        /** Draws the given shape onto the preview element */
-        function drawPreviewBlock(element, shapeData) {
+        function drawPreviewBlock(element, shapeData) { /* ... function body ... */
             element.innerHTML = '';
             
             const shapeDiv = document.createElement('div');
             shapeDiv.classList.add('block-shape');
             
-            // Set grid template based on shape dimensions
             const rows = shapeData.shape.length;
             const cols = shapeData.shape[0].length;
             
@@ -238,10 +69,9 @@
             element.appendChild(shapeDiv);
         }
 
-        // --- Game Core Functions ---
+        // --- Game Core Functions (Mostly unchanged, except for event listeners) ---
 
-        /** Creates the 8x9 grid DOM elements */
-        function createBoard() {
+        function createBoard() { /* ... function body ... */
             gameBoard.innerHTML = '';
             board = Array(ROWS).fill(0).map(() => Array(COLS).fill(0)); 
             
@@ -251,13 +81,14 @@
                     cell.classList.add('cell');
                     cell.dataset.row = r;
                     cell.dataset.col = c;
+                    // **MODIFIED:** Add click listener to the board cells
+                    cell.addEventListener('click', handleBoardClick);
                     gameBoard.appendChild(cell);
                 }
             }
         }
         
-        /** Updates the visual display of the board based on the 'board' data array */
-        function updateBoardDisplay() {
+        function updateBoardDisplay() { /* ... function body ... */
             const cells = gameBoard.querySelectorAll('.cell');
             cells.forEach(cell => {
                 const r = parseInt(cell.dataset.row);
@@ -272,10 +103,10 @@
             });
         }
         
-        /** Generates and displays 3 new blocks */
-        function generateNewBlockSet() {
+        function generateNewBlockSet() { /* ... function body ... */
             previewArea.innerHTML = '';
             currentBlockSet = [];
+            currentSelectedBlock = null; // Clear selection on new set
 
             for (let i = 0; i < 3; i++) {
                 const blockData = generateBlock();
@@ -284,26 +115,25 @@
                 const previewElement = document.createElement('div');
                 previewElement.classList.add('block-preview');
                 previewElement.id = `preview-${i}`;
-                previewElement.draggable = true;
                 
-                // Store block data in dataset for drag operation
+                // Store block data in dataset
                 previewElement.dataset.index = i;
                 previewElement.dataset.shape = JSON.stringify(blockData.shape);
                 previewElement.dataset.color = blockData.color;
                 
                 drawPreviewBlock(previewElement, blockData);
 
-                previewElement.addEventListener('dragstart', handleBlockDragStart);
+                // **MODIFIED:** Use touchstart for double-tap detection
+                previewElement.addEventListener('touchstart', handlePreviewTouchStart);
                 previewArea.appendChild(previewElement);
             }
         }
         
-        /** Checks if the block fits and updates the board array */
-        function attemptPlacement(startRow, startCol, blockData) {
+        function attemptPlacement(startRow, startCol, blockData) { /* ... function body ... */
             const shape = blockData.shape;
             const rows = shape.length;
             const cols = shape[0].length;
-            const colorIndex = CELL_COLORS.indexOf(blockData.color) + 1; // 1, 2, or 3
+            const colorIndex = CELL_COLORS.indexOf(blockData.color) + 1;
 
             // 1. Check for boundaries and collisions
             for (let r = 0; r < rows; r++) {
@@ -312,15 +142,14 @@
                         const boardRow = startRow + r;
                         const boardCol = startCol + c;
 
-                        // Check bounds and if cell is already occupied
                         if (boardRow >= ROWS || boardRow < 0 || boardCol >= COLS || boardCol < 0 || board[boardRow][boardCol] !== 0) {
-                            return false; // Placement failed (out of bounds or collision)
+                            return false; 
                         }
                     }
                 }
             }
 
-            // 2. Place the block (Update the board array)
+            // 2. Place the block
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     if (shape[r][c] === 1) {
@@ -328,11 +157,10 @@
                     }
                 }
             }
-            return true; // Placement successful
+            return true;
         }
         
-        /** Checks for complete rows/columns and clears them, returning the count */
-        function checkAndClearLines() {
+        function checkAndClearLines() { /* ... function body ... */
             let clearedCount = 0;
             const linesToClear = [];
 
@@ -352,7 +180,6 @@
                         break;
                     }
                 }
-                // Prevent duplicate clearing if a cell is part of both a full row and a full column
                 if (isFull && !linesToClear.some(l => l.type === 'col' && l.index === c)) {
                     linesToClear.push({ type: 'col', index: c });
                 }
@@ -373,25 +200,20 @@
             return clearedCount;
         }
 
-        /** Checks if any of the remaining blocks can be placed anywhere on the board */
-        function checkGameOverCondition() {
-            // Check only the blocks that haven't been placed yet
+        function checkGameOverCondition() { /* ... function body ... */
             for (const blockData of currentBlockSet) {
                 if (blockData) {
                     const shape = blockData.shape;
                     const rows = shape.length;
                     const cols = shape[0].length;
                     
-                    // Iterate through every cell on the board as a potential top-left corner
                     for (let r = 0; r <= ROWS - rows; r++) {
                         for (let c = 0; c <= COLS - cols; c++) {
                             
-                            // Check if the block fits at position (r, c)
                             let fits = true;
                             for (let br = 0; br < rows; br++) {
                                 for (let bc = 0; bc < cols; bc++) {
                                     if (shape[br][bc] === 1) {
-                                        // Check collision against existing blocks
                                         if (board[r + br][c + bc] !== 0) {
                                             fits = false;
                                             break;
@@ -401,84 +223,101 @@
                                 if (!fits) break;
                             }
                             if (fits) {
-                                return false; // At least one block can still be placed
+                                return false; 
                             }
                         }
                     }
                 }
             }
 
-            // Only check for game over if all 3 blocks are currently on the board and can't be placed
-            if (currentBlockSet.every(block => block === null) && previewArea.children.length === 0) {
-                // If the set is empty, it means new blocks should have been generated. 
-                // This state should ideally not happen unless game logic is flawed or the game is over 
-                // and new blocks couldn't be generated.
-                return false; 
-            } else if (currentBlockSet.some(block => block !== null)) {
-                // If there are unplaced blocks, and none of them fit, it's game over.
+            if (currentBlockSet.some(block => block !== null)) {
                 return true;
             }
 
             return false;
         }
         
-        // --- Event Handlers ---
+        // --- Event Handlers (New Touch Logic) ---
 
-        function handleBlockDragStart(event) {
-            if (event.target.classList.contains('empty')) return;
+        // Function to remove selection from all previews
+        function deselectAllPreviews() {
+            previewArea.querySelectorAll('.block-preview').forEach(el => {
+                el.style.border = '2px solid #666'; 
+            });
+        }
+        
+        /** Handle touchstart on preview block (used for double-tap selection) */
+        function handlePreviewTouchStart(event) {
+            const now = Date.now();
+            const timeDiff = now - lastTouchTime;
+            lastTouchTime = now;
             
-            // Store block data and its index for later removal
-            currentDraggingBlock = {
-                index: parseInt(event.target.dataset.index),
-                shape: JSON.parse(event.target.dataset.shape),
-                color: event.target.dataset.color
-            };
-            event.dataTransfer.setData('text/plain', '');
-            
-            resetInactivityTimer();
+            const previewElement = event.currentTarget;
+            if (previewElement.classList.contains('empty')) return;
+
+            // Double tap detected (e.g., within 300ms)
+            if (timeDiff < 300) {
+                // Deselect previous block
+                deselectAllPreviews();
+                
+                // Select this block
+                currentSelectedBlock = {
+                    index: parseInt(previewElement.dataset.index),
+                    shape: JSON.parse(previewElement.dataset.shape),
+                    color: previewElement.dataset.color
+                };
+                previewElement.style.border = '4px solid gold'; // Visual feedback for selection
+                
+                resetInactivityTimer();
+                
+                // Prevent further touches/clicks on this element for a moment
+                event.preventDefault(); 
+            } else {
+                // Single tap - treat as a regular tap/click
+            }
         }
 
-        function handleBoardDragOver(event) {
-            event.preventDefault(); 
-        }
+        /** Handle click/tap on the game board (attempt to place selected block) */
+        function handleBoardClick(event) {
+            if (!currentSelectedBlock) return; // No block selected
 
-        function handleBoardDrop(event) {
-            event.preventDefault();
-
-            if (!currentDraggingBlock) return;
-
-            const targetCell = event.target.closest('.cell');
+            const targetCell = event.currentTarget.closest('.cell');
             if (!targetCell) return;
             
             const startRow = parseInt(targetCell.dataset.row);
             const startCol = parseInt(targetCell.dataset.col);
 
-            const blockData = currentDraggingBlock;
+            const blockData = currentSelectedBlock;
 
+            // Attempt to place the block
             const placementSuccessful = attemptPlacement(startRow, startCol, blockData);
 
             if (placementSuccessful) {
                 // 1. Mark block as placed and visually remove it
                 const placedBlockIndex = blockData.index;
                 currentBlockSet[placedBlockIndex] = null;
-                document.getElementById(`preview-${placedBlockIndex}`).classList.add('empty');
-                document.getElementById(`preview-${placedBlockIndex}`).draggable = false;
-                document.getElementById(`preview-${placedBlockIndex}`).innerHTML = '';
+                const previewElement = document.getElementById(`preview-${placedBlockIndex}`);
+                previewElement.classList.add('empty');
+                previewElement.removeEventListener('touchstart', handlePreviewTouchStart);
+                previewElement.innerHTML = '';
+                
+                // Deselect the block
+                deselectAllPreviews();
+                currentSelectedBlock = null;
                 
                 // 2. Check for cleared lines and combos
                 const clearedLines = checkAndClearLines(); 
                 let isCombo = clearedLines > 0;
                 
                 if (isCombo) {
-                    const newScore = score + (clearedLines * 10) + (comboCount * 5); // Combo bonus score
+                    const newScore = score + (clearedLines * 10) + (comboCount * 5); 
                     handleCombo(true, newScore); 
                 } else {
-                    // Successful move, but no line cleared. Reset combo count.
-                    handleCombo(false, score + 1); // Small score for placement
+                    handleCombo(false, score + 1); 
                 }
                 
                 updateBoardDisplay(); 
-                handleMove(true); // Reset inactivity timer
+                handleMove(true); 
 
                 // 3. Check if all blocks in the set are used, and generate new ones
                 if (currentBlockSet.every(block => block === null)) {
@@ -486,11 +325,11 @@
                 }
 
             } else {
-                // Placement failed
-                // handleMove(false); // Do not reset timer if placement failed
+                // Placement failed: Deselect the block to encourage re-selection/re-placement attempt
+                deselectAllPreviews();
+                currentSelectedBlock = null;
+                // Optionally show a "Placement Failed" visual feedback
             }
-            
-            currentDraggingBlock = null;
             
             // 4. Check for Game Over condition
             if (checkGameOverCondition()) {
@@ -498,10 +337,8 @@
             }
         }
         
-        // --- Status Image Functions (Korean Filenames) ---
-
-        /** Shows a status image and hides it after a duration */
-        function showImage(fileName, duration = 1500) {
+        // --- Status Image Functions (No change) ---
+        function showImage(fileName, duration = 1500) { /* ... function body ... */
             statusImage.src = fileName; 
             statusImage.classList.add('visible');
 
@@ -509,36 +346,30 @@
                 statusImage.classList.remove('visible');
             }, duration);
         }
-
-        /** Checks for inactivity and displays '잠.png' (30 seconds idle) */
-        function checkInactivity() {
+        function checkInactivity() { /* ... function body ... */
             if (Date.now() - lastMoveTime > SLEEP_TIMEOUT) {
                 showImage('잠.png', 5000); 
             }
         }
-
-        /** Resets the inactivity timer */
-        function resetInactivityTimer() {
+        function resetInactivityTimer() { /* ... function body ... */
             lastMoveTime = Date.now();
             clearTimeout(sleepTimer);
             sleepTimer = setTimeout(checkInactivity, SLEEP_TIMEOUT);
         }
         
-        // --- Game Event Triggers ---
+        // --- Game Event Triggers (No change) ---
 
-        function handleMove(isSuccessfulMove) {
+        function handleMove(isSuccessfulMove) { /* ... function body ... */
             if (isSuccessfulMove) {
                 resetInactivityTimer();
             }
         }
-
-        function handleCombo(isCombo, newScore) {
+        function handleCombo(isCombo, newScore) { /* ... function body ... */
             if (isCombo) {
                 comboCount++;
-                // Display '행복.png' on combo
                 showImage('행복.png', 1000); 
             } else {
-                comboCount = 0; // Combo streak broken
+                comboCount = 0; 
             }
             
             score = newScore; 
@@ -548,35 +379,36 @@
                 handleNewRecord();
             }
         }
-
-        function handleNewRecord() {
+        function handleNewRecord() { /* ... function body ... */
             highScore = score;
             localStorage.setItem('dulmungBlastHighScore', highScore);
             highScoreElement.textContent = highScore;
-            // Display '신남.png' on new high score
             showImage('신남.png', 2000); 
         }
 
-        function handleGameOver() {
+        function handleGameOver() { /* ... function body ... */
             clearTimeout(sleepTimer);
             
-            // Display '추움.png' on game over
             showImage('추움.png', 3000); 
             
-            // Disable further moves and display final score
-            gameBoard.removeEventListener('drop', handleBoardDrop);
-            previewArea.querySelectorAll('.block-preview').forEach(b => b.draggable = false);
+            // **MODIFIED:** Disable touch/click listeners
+            gameBoard.querySelectorAll('.cell').forEach(cell => {
+                cell.removeEventListener('click', handleBoardClick);
+            });
+            previewArea.querySelectorAll('.block-preview').forEach(b => {
+                b.removeEventListener('touchstart', handlePreviewTouchStart);
+            });
         }
 
         // --- Game Start Function ---
-        function startGame() {
+        function startGame() { /* ... function body ... */
             score = 0;
             currentScoreElement.textContent = score;
             comboCount = 0;
             
-            createBoard();
+            createBoard(); // This adds the 'click' listener to cells
             updateBoardDisplay(); 
-            generateNewBlockSet();
+            generateNewBlockSet(); // This adds the 'touchstart' listener to previews
             
             resetInactivityTimer();
         }
